@@ -1,0 +1,1259 @@
+#!/bin/bash
+# vamos: setup playground
+#
+# remarks: this script is intended to be `sourced`!
+# => thus do not use `exit` in this script
+
+_VAMOS_VERSION=0.1.11
+_VAMOS=vamos
+_APP=`which $_VAMOS`
+
+#===============================================================================
+# usage
+# - can only run in unsourced mode with '---usage' option
+#===============================================================================
+
+if [ "$*" == "---usage" ]; then
+    (return 0 2>/dev/null) && \
+        (echo "assertion violation: ---usage"; return 0) && return 1
+
+        # from here we cannot spoil the caller's environment
+
+    VAMOS=$_VAMOS
+    APP="bash $_APP"
+
+    $APP -@Y "usage: (vamos version $_VAMOS_VERSION)"
+
+    $APP -@G "  session init: (consider to run in .bashrc/.bash_profile)"
+    echo "    . $VAMOS                    # BASH session init (install $VAMOS alias)"
+    #echo ""
+    $APP -@G "  activate playground (including virtual Python environment):"
+    echo "    $VAMOS                      # setup/activate playground"
+    #echo ""
+    $APP -@G "  clone & activate playground:"
+    echo "    $VAMOS @jmpstart/toy-samples"
+    echo "    $VAMOS https://github.com/jmpstart/toy-samples.git"
+    #echo ""
+    $APP -@G "  help:"
+    echo "    $VAMOS -?                   # show usage"
+    echo "    $VAMOS --help               # comprehensive help"
+    #echo ""
+
+    $APP -@G "  tasks:"
+    echo "    $VAMOS -[acdegiprsuw!] ...  # "'see `'"$VAMOS --help"'`'
+
+    exit 0
+fi
+
+#===============================================================================
+# comprehensive help
+# - can only run in unsourced mode with '---help' option
+#===============================================================================
+
+if [ "$*" == "---help" ]; then
+    (return 0 2>/dev/null) && \
+        (echo "assertion violation: ---help"; return 0) && return 1
+
+        # from here we cannot spoil the caller's environment
+
+    VAMOS=$_VAMOS
+    APP="bash $_APP"
+
+    $APP -?                  # usage
+    echo ""
+    $APP -@G "tasks:"
+    echo "    $VAMOS -[acdegiprsuw!] ...  # "'see `'"$VAMOS --help"'`'
+    echo "    $VAMOS -a                   # activate virtual playground"
+    echo "    $VAMOS -c [<venv>]          # create virtual Python environment"
+    echo "    $VAMOS -d                   # deactivate virtual playground"
+    echo "    $VAMOS -e                   # print virtual environment directory"
+    echo "    $VAMOS -g <tag> <path>      # curl from github"
+    echo "    $VAMOS -i                   # install $VAMOS stuff"
+    echo "    $VAMOS -p                   # print virtual environment dir path"
+    echo "    $VAMOS -r                   # remove virtual Python environment"
+    echo "    $VAMOS -s                   # setup playground"
+    echo "    $VAMOS -u                   # uninstall $VAMOS"
+    echo "    $VAMOS -!                   # install as /usr/local/bin/$VAMOS"
+    echo ""
+    $APP -@G "print colored text:"
+    echo "    $VAMOS -@R ...              # echo red text with newline"
+    echo "    $VAMOS -@G ...              # echo green text with newline"
+    echo "    $VAMOS -@Y ...              # echo yellow text with newline"
+    echo "    $VAMOS -@B ...              # echo blue text with newline"
+    echo "    $VAMOS -@M ...              # echo magenta text with newline"
+    echo "    $VAMOS -@C ...              # echo cyan text with newline"
+    echo "    $VAMOS -@N ...              # echo normal text with newline"
+    echo ""
+    echo "    $VAMOS -@r ...              # print red text without newline"
+    echo "    $VAMOS -@g ...              # print green text without newline"
+    echo "    $VAMOS -@y ...              # print yellow text without newline"
+    echo "    $VAMOS -@b ...              # print blue text without newline"
+    echo "    $VAMOS -@m ...              # print magenta text without newline"
+    echo "    $VAMOS -@c ...              # print cyan text without newline"
+    echo "    $VAMOS -@n ...              # print normal text without newline"
+    echo ""
+    $APP -@G "other:"
+    echo "    $VAMOS --check              # check OS requirements"
+    echo "    $VAMOS --gurl <tag> <path>  # convert github tag to github raw URL"
+    echo "    $VAMOS --gtag <url>         # convert github URL to github tag"
+    echo "    $VAMOS --prompt             # set vamos standard prompt"
+    echo "    $VAMOS --version            # print version"
+    echo "    $VAMOS --update             # update vamos"
+    echo ""
+    $APP -@G "curl from  github:"
+    echo "    $VAMOS --curl <tag> <path>  # curl from github"
+    echo "    $VAMOS --curl @jmpstart/vamos main/util/ec"
+
+    exit 0
+fi
+
+#===============================================================================
+# default call: `$ vamos` => setup alias in sourced mode or generate error
+# - can run in both sourced/unsourced mode
+# - if the script is not sourced an error message is generated as this calling
+#   syntax can only setup an alias if it is sourced.
+#===============================================================================
+
+if [ "$*" == "" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+
+    if [ "$_SOURCED" == 0 ]; then
+        vamos -@r 'error: vamos not initialized'
+        vamos -@n ' => init with `'
+        vamos -@g '. vamos'
+        vamos -@n '` (dot-space-vamos)\n'
+    else
+        alias vamos="source $_APP"
+        source $_APP -as     # activate
+    fi
+
+    unset _SOURCED
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    unset _APP
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# activate virtual environment
+# - must run in sourced mode
+#===============================================================================
+
+if [ "$*" == "-a" ] || [ "$*" == "-as" ] \
+                    || [ "$*" == "-an" ] || [ "$*" == "-ans" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced "$*"
+        unset _SOURCED
+        exit 1
+    fi
+
+        # if there is a .vamos folder and no virtual environment directory
+        # in the current directory, a venv will be created
+
+    _vENV=`bash $_APP -e` # return virtual environment directory
+
+    if [ -d .vamos ] && [ "$_vENV" == "" ]; then
+        bash $_APP -cv             # create virtual environment directory
+        source $_APP -an           # activate VENV
+        source $_APP -s            # startup playground
+    elif [ -d venv ]; then
+        if [ -f $VIRTUAL_ENV/bin/venv ]; then
+           source $VIRTUAL_ENV/bin/venv -d  # deactivate
+        else
+           deactivate 2>/dev/null
+        fi
+        if [ -f venv/bin/venv ]; then
+           source venv/bin/venv -a          # activate
+        else
+           source venv/bin/activate
+        fi
+    elif [ -d .venv ]; then
+        if [ -f $VIRTUAL_ENV/bin/venv ]; then
+           source $VIRTUAL_ENV/bin/venv -d  # deactivate
+        else
+           deactivate 2>/dev/null
+        fi
+        if [ -f .venv/bin/venv ]; then
+           source .venv/bin/venv -a          # activate
+        else
+           source .venv/bin/activate
+        fi
+    else
+        _vENV=`bash $_APP -p` # return virtual environment directory
+
+        if [ "$_vENV" == "" ]; then
+		        if [ -f $VIRTUAL_ENV/bin/venv ]; then
+		           source $VIRTUAL_ENV/bin/venv -d  # deactivate
+		        else
+		           deactivate 2>/dev/null
+		        fi
+
+            if [ "$*" != "-as" ] && [ "$*" != "-ans" ]; then
+                bash $_APP -@r 'error: no virtual environment directory'
+                bash $_APP -@n ' (create with: '
+                bash $_APP -@g "$_VAMOS -c"
+                bash $_APP -@N ')'
+            fi
+        else
+		        if [ -f $VIRTUAL_ENV/bin/venv ]; then
+		           source $VIRTUAL_ENV/bin/venv -d  # deactivate
+		        else
+				        if [ -f $VIRTUAL_ENV/bin/venv ]; then
+				           source $VIRTUAL_ENV/bin/venv -d  # deactivate
+				        else
+				           deactivate 2>/dev/null
+				        fi
+		        fi
+		        if [ -f $_vENV/bin/venv ]; then
+		           source $_vENV/bin/venv -a          # activate
+		        else
+		           source $_vENV/bin/activate
+		        fi
+        fi
+
+        unset _vENV
+    fi
+
+    if [ "$*" != "-an" ] && [ "$*" != "-ans" ]; then
+        unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+        unset _VAMOS     # cleanup, since we might run in sourced mode
+        unset _APP
+    fi
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# deactivate virtual environment
+# - must run in sourced mode
+#===============================================================================
+
+if [ "$*" == "-d" ] || [ "$*" == "-dn" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced "$*"
+        unset _SOURCED
+        exit 1
+    fi
+
+    if [ -f $VIRTUAL_ENV/bin/venv ]; then
+       source $VIRTUAL_ENV/bin/venv -d  # deactivate
+    else
+       deactivate 2>/dev/null
+    fi
+
+    if [ "$*" != "-dn" ]; then
+        unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+        unset _VAMOS     # cleanup, since we might run in sourced mode
+        unset _APP
+    fi
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# remove virtual environment directory
+#===============================================================================
+
+if [ "$*" == "-r" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced "$*"
+        unset _SOURCED
+        exit 1
+    fi
+
+    _vENV=`bash $_APP -e`
+
+    if [ "$_vENV" == "" ]; then
+        bash $_APP -@R "error: $_VAMOS -r => no virtual Python environment!"
+    else
+        source $_APP -dn       # deactivate venv, no unset
+        rm -rf $_vENV
+        bash $_APP -@G "$_vENV successfully removed"
+    fi
+
+    unset _vENV
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    unset _APP
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# startup playground
+#===============================================================================
+
+if [ "$*" == "-s" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced "$*"
+        unset _SOURCED
+        exit 1
+    fi
+
+    bash $_APP -@C 'setup playground'
+
+    _vENV=`bash vamos -e`
+
+    if [ -f .vamos/etc/setup ]; then
+        if [ "$_vENV" != "" ] && [ "$VIRTUAL_ENV" != "" ]; then
+            bash $_APP -@Y 'source .vamos/etc/setup'
+            source .vamos/etc/setup
+        fi
+    fi
+
+    unset _vENV
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    unset _APP
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# legacy: change working environment (code is left for study)
+#===============================================================================
+
+if [ "$1" == "---w" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced "$*"
+        unset _SOURCED
+        unset _APP
+        unset _VAMOS
+        unset _VAMOS_VERSION
+        exit 1
+    else
+        unset _SOURCED
+    fi
+
+    shift
+
+        # dispatch usage/help options
+
+    _OPT="$*"
+    if [ "$*" == "-?" ] || [ "$*" == "--help" ] || [ "${_OPT#-}" != "$_OPT" ]; then
+        bash $_APP ---wd?
+        unset _OPT
+        return 0
+    fi
+    unset _OPT
+
+        # workdir must have a value, otherwise initialize with $HOME
+
+    if [ "$WORKDIR" == "" ]; then export WORKDIR=$HOME; fi
+
+        # step 1: if arg == '.' then mind current path as working directory
+
+    if [ "$1" == "." ]; then
+        export WORKDIR=`pwd`
+        bash $_APP -@C 'new working directory:'
+        bash $_APP -@G $WORKDIR
+        ls
+        return 0
+    fi
+
+    if [ "$1" == "..." ]; then
+        cd `bash $_VAMOS ---git-home`
+        return 0
+    fi
+
+    #echo 'processsing' $*
+
+        # step 2: change worekdir to $1 or $WORKDIR
+
+    _ERR=0
+    if [ "$1" != "" ]; then
+        cd $1 || _ERR=1
+    else
+        cd $WORKDIR || _ERR=1
+    fi
+
+    if [ "$_ERR" != 0 ]; then
+        unset _APP
+        unset _VAMOS
+        unset _VAMOS_VERSION
+        return 1
+    fi
+    unset _ERR
+
+        # step 3: print directory overview
+
+    bash $_APP -@Y `pwd`
+    ls
+
+        # step 4: if a playground is detected which has not been setup
+        # then print a warning:
+
+    _vENV=`bash $_APP -e`
+    if [ -d .vamos ] && [ "$_vENV" == "" ]; then
+        bash $_APP -@r 'unactivated playground discovered:'
+        bash $_APP -@n " => setup with '"
+        bash $_APP -@g "$_VAMOS"
+        bash $_APP -@n "'\n"
+    fi
+
+        # step 5: activate/deactivate playground in parent hierarchy
+        # => this feature is not supported in this version of vamos
+
+    _vENV=`bash $_APP -p`
+    if [ "$_vENV" != "" ]; then
+        #source $_APP -a               # activate playground
+        echo >/dev/null
+    else
+        #source $_APP -d               # deactivate playground
+        echo >/dev/null
+    fi
+
+    unset _vENV;  unset _ERR
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# install in /usr/local/bin
+#===============================================================================
+
+if [ "$*" == "-!" ] || [ "$*" == "-k!" ] || [ "$*" == "-v!" ]; then
+    _SRC='./~vamos'
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_SRC ---unsourced $*
+    elif [ "$*" == "-k!" ]; then
+        bash $_SRC ---k! $_SRC
+    elif [ "$*" == "-v!" ]; then
+        bash $_SRC ---! $_SRC
+    else
+        bash $_SRC ---s! $_SRC
+    fi
+
+        # define aliases `vamos` and `wd`
+
+    alias vamos="source /usr/local/bin/vamos"
+    alias wd="source /usr/local/bin/vamos -w"
+
+        # check system requirements
+
+    bash $_VAMOS --check
+
+        # perform verification of the installation
+
+    bash $_VAMOS ---verify
+
+    unset _SOURCED
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    unset _APP
+    unset _SRC
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# set prompt (according to vamos standard)
+#===============================================================================
+
+if [ "$*" == "--prompt" ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced '--prompt'
+    else
+        export PS1="\[\e[35m\]\W\[\e[m\] $ "
+    fi
+
+    unset _SOURCED
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+#===============================================================================
+# standard call: . vamos @myplayground/toy-samples
+# - argument needs to contain at least one slash
+#===============================================================================
+
+_TAG="$*";
+_TAG=${_TAG#"@"}        # remove leading '@'
+
+_HTTPS=0
+echo $1 | grep 'https://' >/dev/null && _HTTPS=1
+
+if [ "$*" == "@$_TAG" ] || [ "$_HTTPS" == 1 ]; then
+    (return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+
+    if [ "$_SOURCED" == 0 ]; then
+        bash $_APP ---unsourced '@...'
+        unset _TAG;  unset _SOURCED;  unset _HTTPS
+        exit 1
+    fi
+
+        # from here we are sure that we are running in sourced mode
+
+    _SLASH=0
+    echo $1 | grep '/' >/dev/null && _SLASH=1
+
+    if [ $_SLASH == 1 ]; then   # default
+
+            # figure out whether arg $1 has short form `myplayground/sample`
+            # or long form `https://github.com/myplayground/sample.git`
+
+        _LONG=0
+        echo $1 | grep https://github.com/ >/dev/null && _LONG=1
+
+            # clone repository - deal with both short and long form
+            # of repository URL
+
+        if [ "$_LONG" == "1" ]; then   # long repo URL
+            #echo 'https://github.com prefix'
+            _URL="$1";
+            _REPO=${_URL#*/}
+            _REPO=${_REPO#"/github.com/"}  # remove leading '/github.com/'
+            _REPO=${_REPO#*/}
+            _REPO=${_REPO%".git"}          # remove trailing '.git'
+            bash $_APP -@Y "git clone $_URL"
+            git clone $_URL
+        else                            # short repo _URL
+            _TAG="$*";
+            _TAG=${_TAG#"@"}        # remove leading '@'
+            _REPO=${_TAG#*/}
+
+            _URL=https://github.com/"$_TAG.git"
+            #echo 'no https://github.com prefix'
+            bash $_APP -@Y "git clone $_URL"
+            git clone $_URL
+        fi
+
+        bash $_APP -@Y "cd $_REPO"
+        cd $_REPO
+
+        source $_APP -as  # activate (setup) playground
+    fi
+
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    unset _APP
+    unset _TAG
+    unset _URL
+    unset _REPO
+    return 0 2>/dev/null || exit 0  # safe return/exit
+fi
+
+unset _TAG
+unset _HTTPS
+
+#===============================================================================
+#===============================================================================
+# from here everything must run in non-sourced mode
+#===============================================================================
+#===============================================================================
+
+(return 0 2>/dev/null) && _SOURCED=1 || _SOURCED=0  # determine _SOURCED
+if [ "$_SOURCED" == 1 ]; then  # is this script running as a sourced script?
+    unset _SOURCED
+
+#echo 'launch child ...'
+    bash $_APP $* || return 1  # execute as child process !!!
+
+    unset _VAMOS_VERSION  # cleanup, since we might run in sourced mode
+    unset _VAMOS     # cleanup, since we might run in sourced mode
+    unset _APP
+    return 0
+fi
+unset _SOURCED
+
+    # remove arg1 and shift other args left
+
+#if [ "$1" == "-!" ]; then
+#    shift  # removes arg1 and shifts other args left
+#fi
+
+    # make sure that script is running un-sourced mode
+
+(return 0 2>/dev/null) && (echo "assertion violation"; exit 1)
+
+#===============================================================================
+#===============================================================================
+# now we are sure that script runs in un-sourced mode:
+# 1) any created environment variable will not affect the parent process
+# 2) the script may terminate with 'exit' without terminating calling process
+#===============================================================================
+#===============================================================================
+
+APP=$_APP
+VERSION=$_VAMOS_VERSION
+VAMOS=$_VAMOS
+
+ECHO="bash $APP"
+
+RED='\x1b[31m'
+GREEN='\x1b[32m'
+YELLOW='\x1b[33m'
+BLUE='\x1b[34m'
+MAGENTA='\x1b[35m'
+CYAN='\x1b[36m'
+NORMAL='\x1b[0m'
+
+#===============================================================================
+# echo colored text with newline
+# - vamos -@R ....  # red
+# - vamos -@G ....  # green
+# - vamos -@Y ....  # yellow
+# - vamos -@B ....  # blue
+# - vamos -@M ....  # magenta
+# - vamos -@C ....  # cyan
+# - vamos -@N ....  # normal
+#===============================================================================
+
+if [ "$1" == "-@R" ]; then
+    shift;  printf $RED;     echo "$*";  printf $NORMAL;  exit 0
+fi
+
+if [ "$1" == "-@G" ]; then
+    shift;  printf $GREEN;   echo "$*";  printf $NORMAL;  exit 0
+fi
+
+if [ "$1" == "-@B" ]; then
+    shift;  printf $BLUE;    echo "$*";  printf $NORMAL;  exit 0
+fi
+
+if [ "$1" == "-@Y" ]; then
+    shift;  printf $YELLOW;  echo "$*";  printf $NORMAL;  exit 0
+fi
+
+if [ "$1" == "-@C" ]; then
+    shift;  printf $CYAN;    echo "$*";  printf $NORMAL;  exit 0
+fi
+
+if [ "$1" == "-@M" ]; then
+    shift;  printf $MAGENTA; echo "$*";  printf $NORMAL;  exit 0
+fi
+
+if [ "$1" == "-@N" ]; then
+    shift;  printf $NORMAL;   echo "$*";  exit 0
+fi
+
+#===============================================================================
+# print colored text without newline
+# - vamos -@r ....  # red
+# - vamos -@g ....  # green
+# - vamos -@y ....  # yellow
+# - vamos -@b ....  # blue
+# - vamos -@m ....  # magenta
+# - vamos -@c ....  # cyan
+# - vamos -@n ....  # normal
+#===============================================================================
+
+if [ "$1" == "-@r" ]; then
+    shift;  printf $RED; printf "$*"; exit 0
+fi
+
+if [ "$1" == "-@g" ]; then
+    shift;  printf $GREEN; printf "$*"; exit 0
+fi
+
+if [ "$1" == "-@y" ]; then
+    shift;  printf $YELLOW; printf "$*"; exit 0
+fi
+
+if [ "$1" == "-@b" ]; then
+    shift;  printf $BLUE; printf "$*"; exit 0
+fi
+
+if [ "$1" == "-@m" ]; then
+    shift;  printf $MAGENTA; printf "$*"; exit 0
+fi
+
+if [ "$1" == "-@c" ]; then
+    shift;  printf $CYAN; printf "$*"; exit 0
+fi
+
+if [ "$1" == "-@n" ]; then
+    shift;  printf $NORMAL;  printf "$*"; exit 0
+fi
+
+#===============================================================================
+# check system OS requirements
+#===============================================================================
+
+if [ "$*" == '--check' ]; then
+    bash $APP -@C 'checking system requirements ...'
+    ERR=0
+    bash $APP '---check-vamos'  || ERR=1
+    bash $APP '---check-git'    || ERR=1
+    bash $APP '---check-python' || ERR=1
+    bash $APP '---check-pip'    || ERR=1
+    bash $APP '---check-venv'   || ERR=1
+
+    if [ "$ERR" != 0 ]; then
+        $ECHO -@r "error: failing system requirements"
+        $ECHO -@n " => fix with '"
+        $ECHO -@g "vamos --fix"
+        $ECHO -@N "'"
+        exit 1
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# check vamos availability
+#===============================================================================
+
+if [ "$*" == '---check-vamos' ]; then
+    ERR=0
+
+    if [ "$ERR" == 0 ]; then
+        printf '  '
+        $ECHO -@g 'OK'
+        $ECHO -@N ": playground managing tool (vamos)"
+        exit 0
+    else
+        printf '  '
+        $ECHO -@r 'FAIL'
+        $ECHO -@N ": playground managing tool (vamos) not available"
+        exit 1
+    fi
+fi
+
+#===============================================================================
+# check git availability
+#===============================================================================
+
+if [ "$*" == '---check-git' ]; then
+    ERR=0
+    git --version >/dev/null 2>/dev/null || ERR=1
+
+    if [ "$ERR" == 0 ]; then
+        printf '  '
+        $ECHO -@g 'OK'
+        $ECHO -@N ": Git version managing tool (git)"
+        exit 0
+    else
+        printf '  '
+        $ECHO -@r 'FAIL'
+        $ECHO -@N ": Git version managing tool (git) not available"
+        exit 1
+    fi
+fi
+
+#===============================================================================
+# check Python version
+#===============================================================================
+
+if [ "$*" == '---check-python' ]; then
+    PYVERS=`python3 --version`
+    OK=`echo $PYVERS | grep 'Python 3.1'`
+
+    if [ "$OK" != "" ]; then
+        printf '  '
+        $ECHO -@g 'OK'
+        $ECHO -@N ": Python version ($PYVERS)"
+        exit 0
+    else
+        printf '  '
+        $ECHO -@r 'FAIL'
+        $ECHO -@N ": Python version ($PYVERS) - must be >= Python 3.10.0"
+        exit 1
+    fi
+fi
+
+#===============================================================================
+# check pip availability
+#===============================================================================
+
+if [ "$*" == '---check-pip' ]; then
+    ERR=0
+    pip --version >/dev/null 2>/dev/null || ERR=1
+
+    if [ "$ERR" == 0 ]; then
+        printf '  '
+        $ECHO -@g 'OK'
+        $ECHO -@N ": Python package manager (pip)"
+        exit 0
+    else
+        printf '  '
+        $ECHO -@r 'FAIL'
+        $ECHO -@N ": Python package manager (pip) not available"
+        exit 1
+    fi
+fi
+
+#===============================================================================
+# check venv availability
+#===============================================================================
+
+if [ "$*" == '---check-venv' ]; then
+    ERR=0
+    python3 -m venv -h >/dev/null 2>/dev/null || ERR=1
+
+    if [ "$ERR" == 0 ]; then
+        printf '  '
+        $ECHO -@g 'OK'
+        $ECHO -@N ": virtual Python environments (venv)"
+        exit 0
+    else
+        printf '  '
+        $ECHO -@r 'FAIL'
+        $ECHO -@N ": virtual Python environments (venv) not available"
+        exit 1
+    fi
+fi
+
+#===============================================================================
+# comprehensive help
+#===============================================================================
+
+if [ "$*" == '--help' ]; then
+    bash $APP '---help'
+    exit 0
+fi
+
+#===============================================================================
+# usage
+#===============================================================================
+
+if [ "$*" == '-?' ]; then
+    bash $APP '---usage'
+    exit 0
+fi
+
+#===============================================================================
+# install ./vamos as /usr/local/bin/vamos
+#===============================================================================
+
+if [ "$1" == "---!" ] || [ "$1" == "---k!" ] || [ "$1" == "---s!" ]; then
+    BIN=/usr/local/bin
+    TARGET=$BIN/vamos
+    SRC=$2
+    LOG="bash $SRC"
+    ERR=0
+
+    if [ "$1" != "---s!" ]; then
+        $LOG -@C "installing vamos in $BIN ..."
+    fi
+
+        # install in /usr/local/bin
+
+    if [ "$ERR" == 0 ]; then
+        if [ "$1" == "---s!" ]; then
+            bash $SRC ---install-s $SRC $TARGET || ERR=1
+        else
+            bash $SRC ---install $SRC $TARGET || ERR=1
+        fi
+    fi
+
+        # remove temporary files
+
+    if [ "$1" != "---k!" ]; then
+        if [ "$1" != "---s!" ]; then
+            $LOG -@C removing "$SRC ..."
+        fi
+        rm $SRC
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# comprehensive help
+#===============================================================================
+
+if [ "$*" == '---wd?' ]; then
+    $ECHO -@G "usage: wd ...       # change working directory / virtual environment"
+    echo      "       wd <path>    # change current dir, occasionally switch venv"
+    echo      "       wd .         # store working directory in WORKDIR"
+    echo      "       wd ..        # change to parent directory"
+    echo      "       wd ...       # change to git home directory"
+    echo      '       wd           # change to $WORKDIR'
+    echo      '       wd -?        # help'
+    echo      '       wd --help    # help'
+    echo      ''
+    echo      "       activate new virtual environment if such is found in current"
+    echo      "       directory or in parent directory hierarchy."
+
+    exit 0
+fi
+
+#===============================================================================
+# create virtual Python environment (folder venv)
+# - usage: vamos -c          # create venv folder
+#          vamos -c @toy     # create @toy folder
+#===============================================================================
+
+if [ "$1" == "-c" ] || [ "$1" == "-cv" ]; then
+    if [ "$1" == "-cv" ]; then
+        $ECHO -@C creating virtual environment
+    fi
+    source $APP -d  # does not deactivate venv of parent process
+
+    if [ -f .vamos/etc/venv ]; then
+        VENV=`bash .vamos/etc/venv`
+        if [ "$VENV" = "" ]; then
+            VENV=venv   # use default name
+        fi
+    elif [ "$2" != "" ]; then
+        VENV="$2"  # use given name
+    else
+        VENV=venv  # use default name
+    fi
+
+    if [ "$1" == "-cv" ]; then
+        $ECHO -@Y python3 -m venv $VENV
+    fi
+    python3 -m venv $VENV    # create virtual Python environment
+
+    if [ "$1" == "-cv" ]; then
+        $ECHO -@Y "($VENV) pip install pip --upgrade >/dev/null"
+    fi
+
+    if [ -f $VIRTUAL_ENV/bin/venv ]; then
+       source $VIRTUAL_ENV/bin/venv -d  # deactivate
+    else
+       deactivate 2>/dev/null
+    fi
+
+    if [ -f $VENV/bin/venv ]; then
+       source $VENV/bin/venv -a          # activate
+    else
+       source $VENV/bin/activate
+    fi
+
+    pip install pip --upgrade >/dev/null
+
+    if [ "$1" == "-cv" ]; then
+        pip list
+        $ECHO -@G "virtual environment $VENV created"
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# print virtual environment directory
+#===============================================================================
+
+if [ "$*" == "-e" ]; then
+    if  [ -d venv ]; then
+        echo venv
+    elif [ -d .venv ]; then
+        echo .venv
+    else
+        DONE=0
+        ITEMS=`ls -a`
+        for ITEM in $ITEMS; do
+            if [ "$ITEM" != "." ] && [ "$ITEM" != ".." ] && [ "$DONE" == 0 ]
+            then
+                if [ -d "$ITEM" ]; then
+                    #echo dir $FILE
+                    FILE="$ITEM/bin/activate"
+                    if [ -f "$FILE" ]; then
+                        echo "$ITEM"
+                        DONE=1
+	                  fi
+                fi
+            fi
+        done
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# convert github tag to github raw URL
+# - usage: vamos --gurl @myhub/my-repo
+#          vamos --gurl @jmpstart/vamos main/util/ec
+# - convert @myhub/my-repo => https://raw.githubusercontent.com/myhub/my-repo
+# - add arg3 to URL if provided
+#===============================================================================
+
+if [ "$1" == "--curl" ] || [ "$1" == "-g" ]; then
+    shift
+    _OPTS="-s"
+    URL=`bash $APP --gurl $*`
+    #echo 'URL:' $URL
+
+    curl $_OPTS $URL
+
+    unset _OPTS
+    unset URL
+    exit 0
+fi
+
+#===============================================================================
+# convert github URL to github tag
+# - convert https://github.com/myhub/my-repo.git => @myhub/my-repo
+#===============================================================================
+
+if [ "$1" == "--gtag" ] && [ "$2" != "" ] && [ "$4" == "" ]; then
+    TAG="$2"
+    #echo 'initial:' $TAG
+    TAG=${TAG%".git"}
+    #echo 'strip off suffix:' $TAG
+    TAG=${TAG#"https://github.com/"}
+    #echo 'strip off prefix:' $TAG
+
+    echo "@$TAG"
+    unset TAG
+    exit 0
+fi
+
+#===============================================================================
+# curl from github
+# - usage: vamos --curl @myhub/my-repo main/util/ec
+#          vamos -g @myhub/my-repo main/util/ec
+#===============================================================================
+
+if [ "$1" == "--gurl" ]; then
+    if [ "$2" != "" ] && [ "$4" == "" ]; then
+        TAG="$2"
+        #echo 'initial:' $TAG
+        TAG=${TAG#"@"}
+        #echo 'strip off prefix:' $TAG
+
+        if [ "$3" == "" ]; then
+            echo "https://raw.githubusercontent.com/$TAG"
+        else
+            echo "https://raw.githubusercontent.com/$TAG/$3"
+        fi
+
+        unset TAG
+        exit 0
+    fi
+fi
+
+#===============================================================================
+# install vamos stuff
+#===============================================================================
+
+if [ "$*" == "-i" ]; then
+    VENV=`bash $APP -e`         # virtual environment dir
+    if [ ! -d .vamos ] || [ "$VENV" == "" ]; then
+        exit 0                  # nothing to do
+    fi
+
+    SUBDIRS=`ls .vamos`
+    for DIR in $SUBDIRS
+    do
+        if [ -d ".vamos/$DIR" ] && [ "$DIR" != '.' ] && [ "$DIR" != '..' ]; then
+            if [ ! -d "$VENV/$DIR" ]; then
+                mkdir "$VENV/$DIR"
+            fi
+
+            bash $APP -@C "installing $VENV/$DIR ..."
+
+            FILES=`ls .vamos/$DIR`
+            for FILE in $FILES
+            do
+                if [ -f ".vamos/$DIR/$FILE" ]; then
+                    echo "  install $VENV/$DIR/$FILE"
+                    cp .vamos/$DIR/$FILE $VENV/$DIR
+
+                    if [ "$DIR" == "bin" ]; then
+                        #$ECHO -@Y "chmod +x $VENV/$DIR/$FILE"
+                        chmod +x $VENV/$DIR/$FILE
+                    fi
+                fi
+            done
+        fi
+    done
+    exit 0
+fi
+
+#===============================================================================
+# print virtual environment directory path, searching in the parent hierarchy
+# of the current directory (i.e., current dir, parent of current dir and so on)
+#===============================================================================
+
+if [ "$*" == '-p' ]; then
+    while [ "`pwd`" != '/' ]
+    do
+        VENV=`bash $APP -e`
+        if [ "$VENV" != "" ]; then
+            echo `pwd`/$VENV
+            exit 0
+        else
+            cd ..
+        fi
+    done
+    exit 1
+fi
+
+#===============================================================================
+# print vamos target directory
+# - with option -t we are not sure wheter running in child or parent process
+# - option -t! indicates that the caller launched us as a child process
+#===============================================================================
+
+if [ "$*" == "-t" ] || [ "$*" == "-t!" ]; then
+    if [ "$1" != "-t!" ]; then  # not sure that we run in a child process
+        bash $APP -t!         # run as a child process, call with -t! option
+    else  # in the else part we run in a child process
+        if [ -f $VIRTUAL_ENV/bin/venv ]; then
+           source $VIRTUAL_ENV/bin/venv -d  # deactivate
+        else
+           deactivate 2>/dev/null
+        fi
+        PYDIR=`which python3`
+
+        if [ "$PYDIR" != "" ]; then
+            PYDIR=${PYDIR%"/python3"}
+        fi
+
+        echo $PYDIR
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# uninstall: $ . vamos -u
+#===============================================================================
+
+if [ "$*" == "-u" ] || [ "$*" == "--uninstall" ]; then
+    ERR=0
+    bash $APP ---uninstall || ERR=1
+
+    if [ "$ERR" == 0 ]; then
+        printf $GREEN
+        echo "$VAMOS (version $VERSION) succesfully uninstalled"
+        printf $NORMAL
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# print version: $ . vamos --version
+#===============================================================================
+
+if [ "$*" == "--version" ]; then
+    echo $VERSION
+    exit 0
+fi
+
+#===============================================================================
+# install helper: copy ./vamos to /usr/local/bin/vamos and chmod +x
+# bash install ---install ./~vamos /usr/local/bin/vamos
+#===============================================================================
+
+if [ "$1" == "---install" ] || [ "$1" == "---install-s" ]; then
+    ERR=0;
+    LOG='bash ~vamos'
+    SRC=$2;  TARGET=$3
+
+    if [ "$SRC" == "" ] || [ "$TARGET" == "" ]; then
+        $LOG -@R "bad input: ~vamos $1 $2 $3"
+        exit 1
+    fi
+
+    if [ -f $SRC ]; then
+        #$LOG -@C "installing $SRC as $TARGET ..."
+        $LOG -@Y "sudo cp $SRC $TARGET"
+        sudo cp $SRC $TARGET || ERR=1
+
+        if [ "$ERR" == 0 ]; then
+            if [ "$1" != "---install-s" ]; then
+                $LOG -@Y "sudo chmod +x $TARGET"
+            fi
+            sudo chmod +x $TARGET || ERR=1
+        fi
+
+        if [ "ERR" == 0 ]; then
+            $LOG -@R "$SRC ---install: cannot install $SRC as $TARGET"
+            exit 1
+        fi
+    else
+        $LOG -@R "$SRC $1: no file $SRC"
+        exit 1
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# echo git home directory: vamos ---git-home
+#===============================================================================
+
+if [ "$*" == "---git-home" ]; then
+    if [ -d ".git" ]; then
+        echo `pwd`
+    else
+        if [ "`pwd`" == "/" ]; then
+            exit 1
+        else
+            cd ..
+            bash vamos ---git-home
+        fi
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# uninstall helper: remove /usr/local/bin/vamos
+#===============================================================================
+
+if [ "$*" == "---uninstall" ]; then
+    if [ -f /usr/local/bin/vamos ]; then
+        printf $YELLOW
+        echo 'removing `vamos` from /usr/local/bin ...'
+        printf $NORMAL
+        sudo rm /usr/local/bin/vamos && exit 0
+
+        echo "$VAMOS ---uninstall: cannot remove /usr/local/bin/vamos"
+        exit 1
+    else
+        echo "$VAMOS ---uninstall: no file /usr/local/bin/vamos"
+        exit 1
+    fi
+    exit 0
+fi
+
+#===============================================================================
+# verification
+#===============================================================================
+
+if [ "$1" == "---verify" ]; then
+    VERIFY=`bash $VAMOS --version`
+
+    if [ "$VERIFY" == "$VERSION" ]; then
+        MORE='(check with `vamos -?`)'
+        $ECHO -@G "vamos (version $VERSION) successfully installed "$MORE
+        exit 0
+    else
+        $ECHO -@R 'error: final check for vamos installation failed'
+        echo 'expected `vamos --version` to return '"$VERSION"
+        exit 1
+    fi
+fi
+
+#===============================================================================
+# unsourced error
+# - $ vamos ---unsourced option
+#===============================================================================
+
+if [ "$1" == "---unsourced" ]; then
+    $ECHO -@r "error: unsourced '$_VAMOS $2'"
+    $ECHO -@n " => use '"
+    $ECHO -@g ". $_VAMOS $2"
+    $ECHO -@n "' or '"
+    $ECHO -@g ". $_VAMOS; $_VAMOS $2"
+    $ECHO -@n "'\n"
+    exit 0
+fi
+
+#===============================================================================
+# update vamos
+# - $ vamos --update
+#===============================================================================
+
+if [ "$1" == "--update" ]; then
+  _URL=https://raw.githubusercontent.com/jmpstart/vamos/main/vamos
+  $ECHO -@G 'updating vamos ...'
+  $ECHO -@Y "curl -s $_URL >~vamos; . ~vamos -!"
+  curl -s $_URL >~vamos; . ~vamos -!
+  exit 0
+fi
+
+#===============================================================================
+# cleanup
+# - since this script is sourced all temporary variables have to be unset
+# - otherwise they would be left as garbage in the calling shell
+#===============================================================================
+
+$ECHO -@R "error: bad calling syntax: vamos $*"
+echo "for help enter: $_VAMOS -?"
+#$APP -?
+exit 0

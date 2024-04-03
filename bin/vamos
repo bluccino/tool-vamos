@@ -332,7 +332,8 @@ if [ "$1" == "---w" ]; then
         # dispatch usage/help options
 
     _OPT="$*"
-    if [ "$*" == "-?" ] || [ "$*" == "--help" ] || [ "${_OPT#-}" != "$_OPT" ]; then
+    if [ "$*" == "-?" ] || [ "$*" == "--help" ] || [ "$*" == "--?" ] \
+                        || [ "${_OPT#-}" != "$_OPT" ]; then
         bash $_APP ---wd?
         unset _OPT
         return 0
@@ -1120,7 +1121,7 @@ fi
 # print version: $ . vamos --version
 #===============================================================================
 
-if [ "$*" == "--version" ]; then
+if [ "$*" == "--version" ] || [ "$*" == "--v" ]; then
     echo $VERSION
     exit 0
 fi
